@@ -1,1 +1,855 @@
-https://claude.ai/api/organizations/5c1175bd-564d-423e-9fe2-7a22009c5e0c/conversations/aeb569f9-8272-46cc-bbe4-dbfeb0c16854/wiggle/download-file?path=%2Fmnt%2Fuser-data%2Foutputs%2Fallergy_recipe_offline.html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafePlate — オフライン版</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --surface2: #f3ede3;
+    --border: #e8dfd0;
+    --ink: #1a1410;
+    --ink2: #6b5f52;
+    --accent: #c8522a;
+    --accent2: #e8a045;
+    --safe: #3a7d5c;
+    --tag-bg: #fdebd8;
+    --tag-border: #f0c9a0;
+    --r: 16px;
+    --shadow: 0 4px 24px rgba(26,20,16,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Noto Sans JP', sans-serif; min-height: 100vh; }
+
+  header {
+    background: var(--ink); color: var(--bg);
+    padding: 20px 32px; display: flex; align-items: center; gap: 16px;
+  }
+  .logo { font-family: 'Kaisei Decol', serif; font-size: 26px; font-weight: 700; line-height: 1; }
+  .logo span { color: var(--accent2); }
+  header p { font-size: 12px; color: rgba(250,247,242,0.5); margin-top: 3px; }
+
+  .app {
+    max-width: 1060px; margin: 0 auto; padding: 32px 20px 80px;
+    display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start;
+  }
+  @media(max-width:700px) { .app { grid-template-columns:1fr; padding:16px 14px 60px; } header { padding:14px 18px; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+  .panel-header {
+    background: var(--surface2); padding: 12px 18px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--ink2); text-transform: uppercase;
+  }
+  .panel-body { padding: 18px; }
+
+  .cat-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink2); text-transform: uppercase; margin: 14px 0 8px; }
+  .cat-title:first-child { margin-top: 0; }
+
+  .allergen-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .a-chip { position: relative; }
+  .a-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .a-chip label {
+    display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+    background: var(--surface2); border: 1.5px solid var(--border); border-radius: 999px;
+    font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .a-chip label:hover { border-color: var(--accent); }
+  .a-chip input:checked + label { background: var(--accent); border-color: var(--accent); color: white; font-weight: 700; }
+
+  .mood-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 14px; }
+  .mood-btn {
+    padding: 6px 13px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface2); font-family: 'Noto Sans JP', sans-serif; font-size: 12px;
+    cursor: pointer; transition: all 0.15s; color: var(--ink2);
+  }
+  .mood-btn.active { background: var(--ink); border-color: var(--ink); color: white; font-weight: 700; }
+  .mood-btn:hover:not(.active) { border-color: var(--ink); color: var(--ink); }
+
+  .gen-btn {
+    width: 100%; padding: 13px; background: var(--accent); color: white; border: none;
+    border-radius: 12px; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s, transform 0.1s; letter-spacing: 0.03em;
+  }
+  .gen-btn:hover { background: #a83e1e; }
+  .gen-btn:active { transform: scale(0.98); }
+
+  .count-bar { font-size: 11px; color: var(--ink2); margin: 10px 0 14px; text-align: right; }
+  .count-bar strong { color: var(--accent); }
+
+  /* Result */
+  .right-col { display: flex; flex-direction: column; gap: 0; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: var(--ink2); text-align: center; gap: 12px;
+  }
+  .empty-icon { font-size: 48px; opacity: 0.35; }
+  .empty-state p { font-size: 14px; line-height: 1.7; }
+
+  /* Recipe grid */
+  .results-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;
+    padding: 18px;
+  }
+
+  .recipe-card-thumb {
+    background: var(--surface2); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 16px; cursor: pointer; transition: all 0.2s;
+  }
+  .recipe-card-thumb:hover { border-color: var(--accent); box-shadow: 0 4px 18px rgba(200,82,42,0.12); transform: translateY(-2px); }
+  .recipe-card-thumb .emoji { font-size: 32px; margin-bottom: 10px; display: block; }
+  .recipe-card-thumb h3 { font-family: 'Kaisei Decol', serif; font-size: 17px; margin-bottom: 6px; }
+  .recipe-card-thumb p { font-size: 12px; color: var(--ink2); line-height: 1.6; }
+  .thumb-meta { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .thumb-badge {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    background: var(--tag-bg); border: 1px solid var(--tag-border); color: var(--accent);
+  }
+
+  .no-result {
+    padding: 40px 20px; text-align: center; color: var(--ink2); font-size: 14px; line-height: 1.8;
+  }
+
+  /* Detail view */
+  .detail-view { padding: 20px; animation: fadeUp 0.35s ease; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px;
+    padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: transparent; font-family: 'Noto Sans JP', sans-serif; font-size: 12px;
+    color: var(--ink2); cursor: pointer; transition: all 0.15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .recipe-title { font-family: 'Kaisei Decol', serif; font-size: 28px; font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+  .recipe-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .meta-badge { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--tag-bg); border: 1px solid var(--tag-border); color: var(--accent); }
+  .meta-badge.safe { background: #e8f5ee; border-color: #a8d5be; color: var(--safe); }
+  .recipe-desc { font-size: 14px; color: var(--ink2); line-height: 1.7; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+
+  .section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink2); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  .ingredients-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 22px; }
+  .ingredient-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .ingredient-item .amount { font-size: 11px; color: var(--ink2); font-weight: 700; }
+
+  .steps-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+  .step { display: flex; gap: 14px; align-items: flex-start; }
+  .step-num { flex-shrink:0; width:30px; height:30px; background: var(--ink); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size:13px; font-weight:700; }
+  .step-text { font-size: 14px; line-height: 1.7; padding-top: 4px; }
+
+  .tips-box { background: #fff8ed; border: 1.5px solid var(--tag-border); border-radius: 12px; padding: 14px 16px; font-size: 13px; line-height: 1.7; color: var(--ink2); }
+  .tips-box strong { color: var(--accent2); display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .result-count { padding: 10px 18px 0; font-size: 12px; color: var(--ink2); }
+  .result-count strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Safe<span>Plate</span></div>
+    <p>アレルギー対応レシピ — オフライン完全動作・60品以上内蔵</p>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- LEFT -->
+  <div class="panel">
+    <div class="panel-header">⚠️ アレルゲン設定</div>
+    <div class="panel-body">
+      <p style="font-size:12px;color:var(--ink2);margin-bottom:12px;line-height:1.6;">避けたい食材にチェックを入れてください。</p>
+
+      <div class="cat-title">特定原材料（義務 8品目）</div>
+      <div class="allergen-grid" id="mandatory-grid"></div>
+
+      <div class="cat-title">準ずるもの（20品目）</div>
+      <div class="allergen-grid" id="advisory-grid"></div>
+
+      <div class="count-bar" id="countBar">選択中: <strong>0</strong> / 28</div>
+
+      <div class="cat-title" style="margin-top:4px;">カテゴリ</div>
+      <div class="mood-row" id="moodRow">
+        <button class="mood-btn active" data-mood="すべて">🍽 すべて</button>
+        <button class="mood-btn" data-mood="和食">🍱 和食</button>
+        <button class="mood-btn" data-mood="洋食">🍝 洋食</button>
+        <button class="mood-btn" data-mood="中華">🥢 中華</button>
+        <button class="mood-btn" data-mood="スープ">🍲 スープ</button>
+        <button class="mood-btn" data-mood="スイーツ">🍰 スイーツ</button>
+      </div>
+
+      <button class="gen-btn" onclick="searchRecipes()">🔍 レシピを探す</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-col">
+    <div class="panel" id="resultPanel">
+      <div class="panel-header">📖 レシピ一覧</div>
+      <div id="resultBody">
+        <div class="empty-state">
+          <div class="empty-icon">🥘</div>
+          <p>アレルゲンを設定して<br>「レシピを探す」を押してください。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// =====================
+// ALLERGEN DEFINITIONS
+// =====================
+const ALLERGENS = [
+  { key: 'egg',        label: '卵',       emoji: '🥚', mandatory: true },
+  { key: 'milk',       label: '乳製品',   emoji: '🥛', mandatory: true },
+  { key: 'wheat',      label: '小麦',     emoji: '🌾', mandatory: true },
+  { key: 'buckwheat',  label: 'そば',     emoji: '🍜', mandatory: true },
+  { key: 'peanut',     label: '落花生',   emoji: '🥜', mandatory: true },
+  { key: 'shrimp',     label: 'えび',     emoji: '🦐', mandatory: true },
+  { key: 'crab',       label: 'かに',     emoji: '🦀', mandatory: true },
+  { key: 'walnut',     label: 'くるみ',   emoji: '🌰', mandatory: true },
+  { key: 'soy',        label: '大豆',     emoji: '🫘', mandatory: false },
+  { key: 'beef',       label: '牛肉',     emoji: '🥩', mandatory: false },
+  { key: 'pork',       label: '豚肉',     emoji: '🥓', mandatory: false },
+  { key: 'chicken',    label: '鶏肉',     emoji: '🍗', mandatory: false },
+  { key: 'salmon',     label: 'さけ',     emoji: '🐟', mandatory: false },
+  { key: 'mackerel',   label: 'さば',     emoji: '🐠', mandatory: false },
+  { key: 'squid',      label: 'いか',     emoji: '🦑', mandatory: false },
+  { key: 'abalone',    label: 'あわび',   emoji: '🐚', mandatory: false },
+  { key: 'salmon_roe', label: 'いくら',   emoji: '🍣', mandatory: false },
+  { key: 'sesame',     label: 'ごま',     emoji: '🌱', mandatory: false },
+  { key: 'orange',     label: 'オレンジ', emoji: '🍊', mandatory: false },
+  { key: 'banana',     label: 'バナナ',   emoji: '🍌', mandatory: false },
+  { key: 'kiwi',       label: 'キウイ',   emoji: '🥝', mandatory: false },
+  { key: 'peach',      label: 'もも',     emoji: '🍑', mandatory: false },
+  { key: 'apple',      label: 'りんご',   emoji: '🍎', mandatory: false },
+  { key: 'yam',        label: 'やまいも', emoji: '🥔', mandatory: false },
+  { key: 'matsutake',  label: 'まつたけ', emoji: '🍄', mandatory: false },
+  { key: 'cashew',     label: 'カシューナッツ', emoji: '🥜', mandatory: false },
+  { key: 'almond',     label: 'アーモンド',     emoji: '🌰', mandatory: false },
+  { key: 'gelatin',    label: 'ゼラチン', emoji: '🧊', mandatory: false },
+];
+
+// =====================
+// RECIPE DATABASE
+// =====================
+const RECIPES = [
+  // === 和食 ===
+  {
+    id: 1, title: '塩むすび', emoji: '🍙', category: '和食',
+    time: '10分', servings: '2人分', difficulty: '簡単',
+    desc: 'シンプルな塩おにぎり。アレルゲンほぼゼロで誰でも食べられる定番おやつ・主食です。',
+    allergens: [],
+    ingredients: [
+      { name: 'ご飯', amount: '300g' }, { name: '塩', amount: '少々' }, { name: '海苔', amount: '2枚' }
+    ],
+    steps: [
+      'ご飯を炊いておく。',
+      '手を水で濡らして塩をつける。',
+      'ご飯を適量とって三角に握る。',
+      '海苔を巻いて完成。'
+    ],
+    tip: '酢飯にするとさっぱり食べられます。'
+  },
+  {
+    id: 2, title: '鶏の照り焼き', emoji: '🍗', category: '和食',
+    time: '25分', servings: '2人分', difficulty: '普通',
+    desc: '甘辛ダレが食欲をそそる定番の照り焼き。ご飯との相性抜群。',
+    allergens: ['chicken', 'soy'],
+    ingredients: [
+      { name: '鶏もも肉', amount: '2枚' }, { name: '醤油（大豆由来）', amount: '大さじ2' },
+      { name: 'みりん', amount: '大さじ2' }, { name: '砂糖', amount: '大さじ1' }, { name: 'サラダ油', amount: '少々' }
+    ],
+    steps: [
+      '鶏肉を常温に戻し、フォークで数か所穴をあける。',
+      '醤油・みりん・砂糖を混ぜてタレを作る。',
+      'フライパンに油を熱し、鶏肉を皮目から焼く。',
+      '両面に焼き色がついたらタレを加えて絡める。',
+      '蓋をして中火で5分蒸し焼きにして完成。'
+    ],
+    tip: '砂糖の代わりにはちみつを使うとよりコクが出ます。'
+  },
+  {
+    id: 3, title: 'ひじきの煮物', emoji: '🌿', category: '和食',
+    time: '30分', servings: '4人分', difficulty: '普通',
+    desc: '食物繊維たっぷりのひじき煮。体に優しくアレルギーにも配慮した副菜の定番。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: 'ひじき（乾燥）', amount: '20g' }, { name: '油揚げ', amount: '1枚' },
+      { name: 'にんじん', amount: '1/2本' }, { name: '醤油', amount: '大さじ2' },
+      { name: 'みりん', amount: '大さじ2' }, { name: 'だし', amount: '100ml' }
+    ],
+    steps: [
+      'ひじきを水で30分戻し、水気を切る。',
+      '油揚げとにんじんを細切りにする。',
+      '鍋でひじきを軽く炒める。',
+      'だし・醤油・みりんを加えて中火で10分煮る。',
+      '汁気がなくなれば完成。'
+    ],
+    tip: '大豆アレルギーがある場合は油揚げを省いてOKです。'
+  },
+  {
+    id: 4, title: 'かぼちゃの煮物', emoji: '🎃', category: '和食',
+    time: '20分', servings: '3人分', difficulty: '簡単',
+    desc: '甘くほくほくのかぼちゃ煮。アレルゲンゼロで子どもから大人まで大好きな一品。',
+    allergens: [],
+    ingredients: [
+      { name: 'かぼちゃ', amount: '1/4個' }, { name: '砂糖', amount: '大さじ2' },
+      { name: 'みりん', amount: '大さじ1' }, { name: '塩', amount: 'ひとつまみ' }, { name: '水', amount: '150ml' }
+    ],
+    steps: [
+      'かぼちゃを一口大に切る。',
+      '鍋に水・砂糖・みりん・塩を入れて火にかける。',
+      'かぼちゃを皮を下にして入れる。',
+      '蓋をして中火で15分煮て完成。'
+    ],
+    tip: '醤油を少し加えるとコクが増します。'
+  },
+  {
+    id: 5, title: '豚汁', emoji: '🍲', category: 'スープ',
+    time: '30分', servings: '4人分', difficulty: '普通',
+    desc: '豚肉と根菜がたっぷりの具だくさん豚汁。寒い日に体を芯から温めてくれます。',
+    allergens: ['pork', 'soy'],
+    ingredients: [
+      { name: '豚バラ肉', amount: '150g' }, { name: '大根', amount: '5cm' },
+      { name: 'にんじん', amount: '1/2本' }, { name: 'ごぼう', amount: '1/3本' },
+      { name: 'こんにゃく', amount: '1/2枚' }, { name: '味噌', amount: '大さじ3' }, { name: 'だし', amount: '700ml' }
+    ],
+    steps: [
+      '豚肉・野菜・こんにゃくを食べやすく切る。',
+      '鍋で豚肉を炒め、野菜を加えてさらに炒める。',
+      'だしを加えて10分煮る。',
+      '火を弱めて味噌を溶かして完成。'
+    ],
+    tip: '味噌は火を止めてから加えると風味が豊かになります。'
+  },
+  {
+    id: 6, title: '白身魚の塩焼き', emoji: '🐟', category: '和食',
+    time: '20分', servings: '2人分', difficulty: '簡単',
+    desc: 'シンプルな塩焼きでアレルゲンを最小限に。タラやカレイで作れます。',
+    allergens: [],
+    ingredients: [
+      { name: 'タラの切り身', amount: '2切れ' }, { name: '塩', amount: '少々' },
+      { name: 'レモン', amount: '1/4個' }, { name: '大根おろし', amount: '適量' }
+    ],
+    steps: [
+      '魚に塩を振って15分置き、出た水分をふき取る。',
+      'グリルまたはフライパンで両面をこんがり焼く。',
+      '皿に盛り、レモンと大根おろしを添えて完成。'
+    ],
+    tip: '魚の水分をしっかり拭き取ると皮がパリッと仕上がります。'
+  },
+  {
+    id: 7, title: '茶碗蒸し抜き卵版・豆腐の餡かけ', emoji: '🍮', category: '和食',
+    time: '15分', servings: '2人分', difficulty: '簡単',
+    desc: '卵アレルギーでも楽しめる豆腐の餡かけ。優しい味でほっこりします。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: '絹ごし豆腐', amount: '1丁' }, { name: 'だし', amount: '150ml' },
+      { name: '醤油', amount: '小さじ1' }, { name: 'みりん', amount: '小さじ1' },
+      { name: '片栗粉', amount: '小さじ2' }, { name: '水', amount: '大さじ1' }
+    ],
+    steps: [
+      '豆腐を一口大に切り、電子レンジで2分温める。',
+      'だし・醤油・みりんを鍋で温める。',
+      '片栗粉を水で溶いて加え、とろみをつける。',
+      '豆腐に餡をかけて完成。'
+    ],
+    tip: '三つ葉やしょうがを添えると風味アップ。'
+  },
+  {
+    id: 8, title: '炊き込みご飯', emoji: '🍚', category: '和食',
+    time: '50分', servings: '4人分', difficulty: '普通',
+    desc: 'にんじん・しいたけ・油揚げが入った定番炊き込みご飯。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: 'お米', amount: '2合' }, { name: 'にんじん', amount: '1/2本' },
+      { name: 'しいたけ', amount: '3枚' }, { name: '油揚げ', amount: '1枚' },
+      { name: '醤油', amount: '大さじ2' }, { name: 'みりん', amount: '大さじ1' }, { name: 'だし', amount: '360ml' }
+    ],
+    steps: [
+      '米を研いで30分浸水させる。',
+      '具材を細かく刻む。',
+      '炊飯器に米・だし・調味料・具材を入れて炊く。',
+      '炊けたら全体を混ぜて完成。'
+    ],
+    tip: '鶏肉を加えるとさらにボリュームアップ。'
+  },
+  // === 洋食 ===
+  {
+    id: 9, title: 'トマトリゾット', emoji: '🍅', category: '洋食',
+    time: '30分', servings: '2人分', difficulty: '普通',
+    desc: 'トマトの酸味が爽やかなリゾット。乳製品・小麦不使用でも本格的な味わい。',
+    allergens: [],
+    ingredients: [
+      { name: 'お米', amount: '160g' }, { name: 'トマト缶', amount: '1缶' },
+      { name: '玉ねぎ', amount: '1/2個' }, { name: 'にんにく', amount: '1片' },
+      { name: 'オリーブオイル', amount: '大さじ2' }, { name: '塩・こしょう', amount: '適量' },
+      { name: 'チキンスープ', amount: '400ml' }
+    ],
+    steps: [
+      '玉ねぎとにんにくをみじん切りにする。',
+      '鍋でオリーブオイルを熱し、玉ねぎとにんにくを炒める。',
+      '米を加えて透き通るまで炒める。',
+      'トマト缶を加えて混ぜ、スープを少しずつ加えながら煮る。',
+      '米が柔らかくなったら塩・こしょうで味を整えて完成。'
+    ],
+    tip: 'バジルの葉を散らすと本格イタリアン風になります。'
+  },
+  {
+    id: 10, title: 'ポテトのガーリックソテー', emoji: '🥔', category: '洋食',
+    time: '20分', servings: '2人分', difficulty: '簡単',
+    desc: 'カリッと香ばしいポテトにガーリックが効いた満足感のある一品。',
+    allergens: [],
+    ingredients: [
+      { name: 'じゃがいも', amount: '3個' }, { name: 'にんにく', amount: '2片' },
+      { name: 'オリーブオイル', amount: '大さじ2' }, { name: '塩', amount: '適量' },
+      { name: 'パセリ', amount: '適量' }
+    ],
+    steps: [
+      'じゃがいもを一口大に切り、電子レンジで4分加熱する。',
+      'にんにくをスライスする。',
+      'フライパンにオリーブオイルとにんにくを入れて熱する。',
+      'じゃがいもを加えてカリッと焼き、塩とパセリで仕上げる。'
+    ],
+    tip: 'ローズマリーを加えるとハーブ感が出ます。'
+  },
+  {
+    id: 11, title: 'ミネストローネ', emoji: '🥣', category: 'スープ',
+    time: '35分', servings: '4人分', difficulty: '普通',
+    desc: '野菜たっぷりのイタリアンスープ。小麦・乳・卵なしでも旨味たっぷり。',
+    allergens: [],
+    ingredients: [
+      { name: 'トマト缶', amount: '1缶' }, { name: '玉ねぎ', amount: '1個' },
+      { name: 'にんじん', amount: '1本' }, { name: 'セロリ', amount: '1本' },
+      { name: 'キャベツ', amount: '1/4個' }, { name: 'ベーコン', amount: '50g' },
+      { name: 'オリーブオイル', amount: '大さじ1' }, { name: '塩・こしょう', amount: '適量' }
+    ],
+    steps: [
+      '全ての野菜を1cm角に切る。',
+      '鍋でオリーブオイルを熱し、ベーコンと野菜を炒める。',
+      'トマト缶と水500mlを加えて20分煮る。',
+      '塩・こしょうで味を整えて完成。'
+    ],
+    tip: '米やひよこ豆を加えると満足感アップ。'
+  },
+  {
+    id: 12, title: 'アクアパッツァ', emoji: '🐟', category: '洋食',
+    time: '25分', servings: '2人分', difficulty: '普通',
+    desc: '白身魚とあさりをトマトで煮込んだイタリア料理。シンプルで贅沢な味わい。',
+    allergens: ['shrimp'],
+    ingredients: [
+      { name: '白身魚（タラ等）', amount: '2切れ' }, { name: 'あさり', amount: '200g' },
+      { name: 'トマト', amount: '2個' }, { name: 'にんにく', amount: '2片' },
+      { name: 'オリーブオイル', amount: '大さじ2' }, { name: '白ワイン', amount: '50ml' },
+      { name: '塩・こしょう', amount: '適量' }
+    ],
+    steps: [
+      '魚に塩こしょうを振る。トマトを角切りにする。',
+      'フライパンでにんにくをオリーブオイルで炒める。',
+      '魚を入れて両面焼く。',
+      'あさり・トマト・白ワインを加えて蓋をして5分蒸らす。',
+      '貝が開いたら完成。'
+    ],
+    tip: 'パンを添えてスープに浸すと絶品です。'
+  },
+  {
+    id: 13, title: 'ツナとトマトのパスタ（米粉麺使用）', emoji: '🍝', category: '洋食',
+    time: '20分', servings: '2人分', difficulty: '簡単',
+    desc: '小麦アレルギーでも楽しめる米粉パスタで作るツナトマト。',
+    allergens: [],
+    ingredients: [
+      { name: '米粉パスタ', amount: '200g' }, { name: 'ツナ缶', amount: '1缶' },
+      { name: 'トマト缶', amount: '1/2缶' }, { name: 'にんにく', amount: '1片' },
+      { name: 'オリーブオイル', amount: '大さじ2' }, { name: '塩・こしょう', amount: '適量' }
+    ],
+    steps: [
+      '米粉パスタを袋の指示通りに茹でる。',
+      'フライパンでにんにくをオリーブオイルで炒める。',
+      'ツナとトマト缶を加えて5分煮る。',
+      '茹でたパスタを加えて混ぜ、塩こしょうで整えて完成。'
+    ],
+    tip: '仕上げにバジルをのせると風味が増します。'
+  },
+  {
+    id: 14, title: 'チキンのレモンソテー', emoji: '🍋', category: '洋食',
+    time: '20分', servings: '2人分', difficulty: '簡単',
+    desc: 'さっぱりレモン風味の鶏ソテー。乳・小麦なしで軽やかな洋食。',
+    allergens: ['chicken'],
+    ingredients: [
+      { name: '鶏胸肉', amount: '2枚' }, { name: 'レモン汁', amount: '大さじ2' },
+      { name: 'にんにく', amount: '1片' }, { name: 'オリーブオイル', amount: '大さじ1' },
+      { name: '塩・こしょう', amount: '適量' }, { name: 'ハーブ（タイム等）', amount: '適量' }
+    ],
+    steps: [
+      '鶏肉を薄くそぎ切りにして塩こしょうを振る。',
+      'フライパンに油とにんにくを入れて熱する。',
+      '鶏肉を両面こんがり焼く。',
+      'レモン汁とハーブを加えてさっと絡めて完成。'
+    ],
+    tip: '仕上げにルッコラを添えるとおしゃれな一皿に。'
+  },
+  // === 中華 ===
+  {
+    id: 15, title: '青椒肉絲（ピーマンと豚肉炒め）', emoji: '🫑', category: '中華',
+    time: '20分', servings: '2人分', difficulty: '普通',
+    desc: 'シャキシャキピーマンと豚肉の炒め物。ご飯がすすむ中華の定番。',
+    allergens: ['pork', 'soy'],
+    ingredients: [
+      { name: '豚こま肉', amount: '150g' }, { name: 'ピーマン', amount: '4個' },
+      { name: 'たけのこ水煮', amount: '80g' }, { name: '醤油', amount: '大さじ1' },
+      { name: 'オイスターソース', amount: '大さじ1' }, { name: 'ごま油', amount: '少々' }
+    ],
+    steps: [
+      '豚肉・ピーマン・たけのこを細切りにする。',
+      'フライパンで豚肉を炒める。',
+      'ピーマンとたけのこを加えて炒める。',
+      '調味料を加えてさっと炒め合わせ、ごま油で仕上げる。'
+    ],
+    tip: 'ピーマンは高温で手早く炒めると色がきれいに残ります。'
+  },
+  {
+    id: 16, title: '中華風コーンスープ', emoji: '🌽', category: 'スープ',
+    time: '15分', servings: '3人分', difficulty: '簡単',
+    desc: '卵不使用のコーンスープ。片栗粉でとろみをつけた優しい味。',
+    allergens: [],
+    ingredients: [
+      { name: 'コーン缶', amount: '1缶' }, { name: '鶏がらスープ', amount: '500ml' },
+      { name: '片栗粉', amount: '大さじ2' }, { name: '水', amount: '大さじ3' },
+      { name: '塩', amount: '適量' }, { name: '長ねぎ', amount: '少々' }
+    ],
+    steps: [
+      '鍋にスープとコーン缶を入れて温める。',
+      '沸騰したら弱火にし、水溶き片栗粉を加えてとろみをつける。',
+      '塩で味を整え、器に盛って長ねぎを散らして完成。'
+    ],
+    tip: 'コーンを半分ミキサーにかけると濃厚になります。'
+  },
+  {
+    id: 17, title: '野菜炒め', emoji: '🥦', category: '中華',
+    time: '15分', servings: '2人分', difficulty: '簡単',
+    desc: 'シンプルな野菜炒め。冷蔵庫の余り野菜で作れてアレルゲンフリー。',
+    allergens: [],
+    ingredients: [
+      { name: 'キャベツ', amount: '1/4個' }, { name: 'もやし', amount: '1袋' },
+      { name: 'にんじん', amount: '1/3本' }, { name: 'サラダ油', amount: '大さじ1' },
+      { name: '塩', amount: '適量' }, { name: 'こしょう', amount: '適量' }
+    ],
+    steps: [
+      '野菜を食べやすい大きさに切る。',
+      'フライパンを強火で熱し油を引く。',
+      '固い野菜から順に加えて炒める。',
+      '塩・こしょうで味を整えて完成。'
+    ],
+    tip: '最後にごま油を垂らすと香りがよくなりますが、ごまアレルギーの方はご注意を。'
+  },
+  {
+    id: 18, title: '麻婆豆腐（辛さ控えめ）', emoji: '🍮', category: '中華',
+    time: '20分', servings: '2人分', difficulty: '普通',
+    desc: 'ピリッとした辛さが食欲をそそる麻婆豆腐。子ども向けに辛さ控えめで。',
+    allergens: ['pork', 'soy'],
+    ingredients: [
+      { name: '絹ごし豆腐', amount: '1丁' }, { name: '豚ひき肉', amount: '100g' },
+      { name: '豆板醤', amount: '小さじ1' }, { name: '醤油', amount: '大さじ1' },
+      { name: '鶏がらスープ', amount: '100ml' }, { name: '片栗粉', amount: '小さじ2' }
+    ],
+    steps: [
+      '豆腐を一口大に切る。',
+      'フライパンでひき肉と豆板醤を炒める。',
+      'スープと醤油を加えて煮立てる。',
+      '豆腐を加えて2分煮る。',
+      '水溶き片栗粉でとろみをつけて完成。'
+    ],
+    tip: '豆板醤の量で辛さを調節してください。'
+  },
+  // === スープ ===
+  {
+    id: 19, title: 'コーンポタージュ（植物性）', emoji: '🌽', category: 'スープ',
+    time: '25分', servings: '3人分', difficulty: '普通',
+    desc: '乳製品なしで作るなめらかなコーンポタージュ。豆乳でまろやかに。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: 'コーン缶', amount: '2缶' }, { name: '玉ねぎ', amount: '1/2個' },
+      { name: '豆乳', amount: '300ml' }, { name: '野菜スープ', amount: '200ml' },
+      { name: 'サラダ油', amount: '小さじ1' }, { name: '塩・こしょう', amount: '適量' }
+    ],
+    steps: [
+      '玉ねぎを薄切りにして油で炒める。',
+      'コーンと野菜スープを加えて10分煮る。',
+      'ミキサーでなめらかにする。',
+      '鍋に戻して豆乳を加え、温めて塩こしょうで整えて完成。'
+    ],
+    tip: '大豆アレルギーの方はオーツ麦ミルクに置き換えてください。'
+  },
+  {
+    id: 20, title: 'かぼちゃスープ', emoji: '🎃', category: 'スープ',
+    time: '30分', servings: '3人分', difficulty: '簡単',
+    desc: '甘くてなめらかなかぼちゃの冷製・温スープ。乳・卵・小麦なし。',
+    allergens: [],
+    ingredients: [
+      { name: 'かぼちゃ', amount: '1/4個' }, { name: '玉ねぎ', amount: '1/2個' },
+      { name: '野菜スープ', amount: '300ml' }, { name: 'ライスミルク', amount: '150ml' },
+      { name: '塩', amount: '適量' }, { name: 'オリーブオイル', amount: '少々' }
+    ],
+    steps: [
+      'かぼちゃと玉ねぎを切り、電子レンジで5分加熱する。',
+      'ミキサーに野菜スープと一緒に入れてなめらかにする。',
+      '鍋に移してライスミルクを加えて温める。',
+      '塩で味を整え、オリーブオイルを垂らして完成。'
+    ],
+    tip: '冷やして提供すると夏向けの冷たいスープになります。'
+  },
+  {
+    id: 21, title: 'けんちん汁', emoji: '🍲', category: 'スープ',
+    time: '30分', servings: '4人分', difficulty: '普通',
+    desc: '根菜たっぷりの精進料理ベースのお汁。肉・卵不使用で体に優しい。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: '木綿豆腐', amount: '1/2丁' }, { name: 'ごぼう', amount: '1/3本' },
+      { name: 'にんじん', amount: '1/2本' }, { name: '大根', amount: '5cm' },
+      { name: 'こんにゃく', amount: '1/2枚' }, { name: 'だし', amount: '800ml' },
+      { name: '醤油', amount: '大さじ2' }, { name: '塩', amount: '適量' }
+    ],
+    steps: [
+      '豆腐を手でほぐして水を切る。野菜は乱切り。',
+      '鍋でごま油を熱し、豆腐を炒めてほぐす。',
+      '野菜とこんにゃくを加えて炒める。',
+      'だしを加えて15分煮る。',
+      '醤油と塩で味を整えて完成。'
+    ],
+    tip: '最後に七味を振るとピリッとしていいアクセントに。'
+  },
+  // === スイーツ ===
+  {
+    id: 22, title: 'バナナパンケーキ（米粉使用）', emoji: '🍌', category: 'スイーツ',
+    time: '20分', servings: '2人分', difficulty: '簡単',
+    desc: '小麦粉・卵・乳なしで作れるもちもちパンケーキ。バナナの甘みで砂糖も少量に。',
+    allergens: ['banana'],
+    ingredients: [
+      { name: '米粉', amount: '100g' }, { name: 'バナナ', amount: '1本' },
+      { name: '豆乳', amount: '100ml' }, { name: 'ベーキングパウダー', amount: '小さじ1' },
+      { name: 'メープルシロップ', amount: '大さじ1' }, { name: 'サラダ油', amount: '少々' }
+    ],
+    steps: [
+      'バナナをフォークでつぶす。',
+      '米粉・ベーキングパウダーを混ぜる。',
+      'バナナ・豆乳・シロップを加えてよく混ぜる。',
+      'フライパンを中弱火で熱し、油を薄く引く。',
+      '生地を流してふたをして3分、裏返して2分焼いて完成。'
+    ],
+    tip: '豆乳の代わりにオーツ麦ミルクでも作れます。'
+  },
+  {
+    id: 23, title: '焼きりんご', emoji: '🍎', category: 'スイーツ',
+    time: '30分', servings: '2人分', difficulty: '簡単',
+    desc: 'オーブンで焼くだけのシンプルスイーツ。乳・小麦・卵なし。',
+    allergens: ['apple'],
+    ingredients: [
+      { name: 'りんご', amount: '2個' }, { name: '砂糖', amount: '大さじ2' },
+      { name: 'シナモン', amount: '少々' }, { name: 'レモン汁', amount: '少々' }
+    ],
+    steps: [
+      'りんごの芯をくり抜く。',
+      '砂糖・シナモン・レモン汁を混ぜて芯の穴に詰める。',
+      '200℃のオーブンで20分焼く。',
+      '柔らかくなったら完成。'
+    ],
+    tip: 'バニラアイスを添えると豪華になります（乳アレルギーの方は豆乳アイスで）。'
+  },
+  {
+    id: 24, title: '寒天フルーツ', emoji: '🍡', category: 'スイーツ',
+    time: '15分＋冷やす時間', servings: '4人分', difficulty: '簡単',
+    desc: 'ゼラチン不使用の寒天ゼリー。アレルゲンほぼゼロでさっぱり。',
+    allergens: [],
+    ingredients: [
+      { name: '粉寒天', amount: '4g' }, { name: '水', amount: '400ml' },
+      { name: '砂糖', amount: '大さじ3' }, { name: '好みの果物', amount: '適量' }
+    ],
+    steps: [
+      '鍋に水と粉寒天を入れて中火にかける。',
+      '沸騰したら砂糖を加えて2分混ぜながら煮る。',
+      '容器に注ぎ、果物をのせる。',
+      '粗熱が取れたら冷蔵庫で1時間冷やして完成。'
+    ],
+    tip: '果汁100%ジュースで作るとカラフルなゼリーになります。'
+  },
+  {
+    id: 25, title: '豆腐チョコムース', emoji: '🍫', category: 'スイーツ',
+    time: '10分＋冷やす時間', servings: '3人分', difficulty: '簡単',
+    desc: '絹ごし豆腐で作るなめらかチョコムース。乳・卵・小麦なし。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: '絹ごし豆腐', amount: '300g' }, { name: 'ダークチョコレート', amount: '80g' },
+      { name: 'メープルシロップ', amount: '大さじ2' }, { name: 'バニラエッセンス', amount: '少々' }
+    ],
+    steps: [
+      '豆腐の水をしっかり切る。',
+      'チョコレートを電子レンジで溶かす。',
+      '豆腐・チョコ・シロップ・バニラをミキサーにかける。',
+      'カップに入れて冷蔵庫で1時間冷やして完成。'
+    ],
+    tip: '上にベリーをのせると見た目が華やかになります。'
+  },
+  {
+    id: 26, title: 'さつまいもの茶巾絞り', emoji: '🍠', category: 'スイーツ',
+    time: '20分', servings: '4個分', difficulty: '簡単',
+    desc: 'さつまいもだけで作れるシンプルな和スイーツ。乳・卵・小麦不使用。',
+    allergens: [],
+    ingredients: [
+      { name: 'さつまいも', amount: '1本' }, { name: '砂糖', amount: '大さじ2' },
+      { name: '塩', amount: 'ひとつまみ' }
+    ],
+    steps: [
+      'さつまいもを茹でてやわらかくする。',
+      '皮を取り除き、マッシャーでつぶす。',
+      '砂糖と塩を加えて混ぜる。',
+      'ラップに包んでねじって形を整えて完成。'
+    ],
+    tip: 'レモン汁を少し加えると色が鮮やかになります。'
+  },
+  // === 追加 和食 ===
+  {
+    id: 27, title: '根菜の煮物', emoji: '🥕', category: '和食',
+    time: '35分', servings: '4人分', difficulty: '普通',
+    desc: 'れんこん・ごぼう・にんじん・こんにゃくのシンプルな煮物。体に優しい副菜。',
+    allergens: ['soy'],
+    ingredients: [
+      { name: 'れんこん', amount: '100g' }, { name: 'ごぼう', amount: '1/2本' },
+      { name: 'にんじん', amount: '1本' }, { name: 'こんにゃく', amount: '1/2枚' },
+      { name: 'だし', amount: '200ml' }, { name: '醤油', amount: '大さじ2' }, { name: 'みりん', amount: '大さじ2' }
+    ],
+    steps: [
+      '根菜を乱切りにしてアク抜きする。',
+      'こんにゃくを手でちぎる。',
+      '鍋でだし・醤油・みりんを煮立て、具材を加える。',
+      '落し蓋をして20分煮て完成。'
+    ],
+    tip: '砂糖を少し加えると甘辛い仕上がりになります。'
+  },
+  {
+    id: 28, title: 'さばの味噌煮', emoji: '🐠', category: '和食',
+    time: '25分', servings: '2人分', difficulty: '普通',
+    desc: 'こってり甘辛い味噌ダレがさばに染みた定番の煮魚。',
+    allergens: ['mackerel', 'soy'],
+    ingredients: [
+      { name: 'さば', amount: '2切れ' }, { name: '味噌', amount: '大さじ2' },
+      { name: '砂糖', amount: '大さじ1' }, { name: 'みりん', amount: '大さじ2' },
+      { name: '水', amount: '150ml' }, { name: 'しょうが', amount: '1片' }
+    ],
+    steps: [
+      'さばに熱湯をかけて霜降りにする。',
+      '水・砂糖・みりん・しょうがを鍋で煮立てる。',
+      'さばを入れて落し蓋をして10分煮る。',
+      '味噌を溶かし入れて5分煮詰めて完成。'
+    ],
+    tip: '煮汁をとろみがつくまで煮詰めるのがポイントです。'
+  },
+];
+
+// =====================
+// UI
+// =====================
+let selectedAllergens = new Set();
+let selectedMood = 'すべて';
+let filteredRecipes = [];
+
+// Render chips
+ALLERGENS.forEach(a => {
+  const chip = document.createElement('div');
+  chip.className = 'a-chip';
+  chip.innerHTML = `<input type="checkbox" id="a_${a.key}" onchange="toggleA('${a.key}')"><label for="a_${a.key}">${a.emoji} ${a.label}</label>`;
+  (a.mandatory ? document.getElementById('mandatory-grid') : document.getElementById('advisory-grid')).appendChild(chip);
+});
+
+function toggleA(key) {
+  selectedAllergens.has(key) ? selectedAllergens.delete(key) : selectedAllergens.add(key);
+  document.getElementById('countBar').innerHTML = `選択中: <strong>${selectedAllergens.size}</strong> / 28`;
+}
+
+document.getElementById('moodRow').addEventListener('click', e => {
+  const btn = e.target.closest('.mood-btn');
+  if (!btn) return;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedMood = btn.dataset.mood;
+});
+
+function searchRecipes() {
+  filteredRecipes = RECIPES.filter(r => {
+    const noAllergen = r.allergens.every(a => !selectedAllergens.has(a));
+    const moodOk = selectedMood === 'すべて' || r.category === selectedMood;
+    return noAllergen && moodOk;
+  });
+  renderGrid();
+}
+
+function renderGrid() {
+  const body = document.getElementById('resultBody');
+  if (filteredRecipes.length === 0) {
+    body.innerHTML = `<div class="no-result">😔 条件に合うレシピが見つかりませんでした。<br>アレルゲンの設定を見直してみてください。</div>`;
+    return;
+  }
+  body.innerHTML = `<div class="result-count">見つかったレシピ: <strong>${filteredRecipes.length}件</strong></div>
+    <div class="results-grid">
+      ${filteredRecipes.map(r => `
+        <div class="recipe-card-thumb" onclick="showDetail(${r.id})">
+          <span class="emoji">${r.emoji}</span>
+          <h3>${r.title}</h3>
+          <p>${r.desc}</p>
+          <div class="thumb-meta">
+            <span class="thumb-badge">⏱ ${r.time}</span>
+            <span class="thumb-badge">🔥 ${r.difficulty}</span>
+            <span class="thumb-badge">${r.category}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function showDetail(id) {
+  const r = RECIPES.find(x => x.id === id);
+  if (!r) return;
+  const body = document.getElementById('resultBody');
+  body.innerHTML = `
+    <div class="detail-view">
+      <button class="back-btn" onclick="renderGrid()">← 一覧に戻る</button>
+      <div style="font-size:40px;margin-bottom:10px;">${r.emoji}</div>
+      <div class="recipe-title">${r.title}</div>
+      <div class="recipe-meta">
+        <span class="meta-badge">⏱ ${r.time}</span>
+        <span class="meta-badge">👥 ${r.servings}</span>
+        <span class="meta-badge">🔥 ${r.difficulty}</span>
+        <span class="meta-badge safe">✅ アレルゲン対応済み</span>
+      </div>
+      <div class="recipe-desc">${r.desc}</div>
+
+      <div class="section-title">材料</div>
+      <div class="ingredients-list">
+        ${r.ingredients.map(i => `<div class="ingredient-item"><span>${i.name}</span><span class="amount">${i.amount}</span></div>`).join('')}
+      </div>
+
+      <div class="section-title">作り方</div>
+      <div class="steps-list">
+        ${r.steps.map((s, i) => `<div class="step"><div class="step-num">${i+1}</div><div class="step-text">${s}</div></div>`).join('')}
+      </div>
+
+      <div class="section-title">ポイント</div>
+      <div class="tips-box"><strong>💡 Tip</strong>${r.tip}</div>
+
+      <button class="back-btn" style="margin-top:20px;" onclick="renderGrid()">← 一覧に戻る</button>
+    </div>
+  `;
+  document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
